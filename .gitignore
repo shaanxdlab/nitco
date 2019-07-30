@@ -3,3 +3,4 @@ db/
 extra-img/
 data/
 package-lock.json
+.history/
