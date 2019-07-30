@@ -1,4 +1,5 @@
-var db = require('../database');
+var dataDb = require('../database');
+let db = dataDb.connectDatabase();
 
 module.exports = {
 
@@ -24,56 +25,41 @@ module.exports = {
 
     getLooksList: function(data, callback) {
 
-        console.log(data[1]);
+        var space = data.space.trim(),
+            surface = data.surface.toLowerCase().trim(),
+            Size = data.space_size.toLowerCase().trim(),
+            price_range = data.price_range.trim(),
+            offsets = data.offset;
 
-        var space = data[0].space.toLowerCase().trim(),
-            surface = data[0].surface.toLowerCase().trim(),
-            size = data[0].space_size.toUpperCase().trim(),
-            price_range = data[0].price_range.trim(),
-            offsets = data[0].offset;
+        let size = Size.charAt(0).toUpperCase() + Size.slice(1);
 
+        var keyword = data.keyword;
 
-        var keyword = data[0].keyword;
-
-        var spaces = (space != '' && space != 'all') ? ` spaces = '${space}' AND ` : '',
+        var spaces = (space != '' && space != 'all') ? ` spaces = '${space.replace(/\w\S*/g, function(txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); })}' AND ` : '',
             surfaces = (surface != '' && surface != 'all') ? ` surfaces = '${surface}' AND ` : '',
-            space_size = (data[0].space_size != '' && data[0].space_size != 'all') ? ` space_size = '${size}' AND ` : '',
+            space_size = (data.space_size != '' && data.space_size != 'all') ? ` space_size = '${size}' AND ` : '',
             price = (price_range != '' && price_range != 'all') ? ` priceCategory = '${price_range}' AND ` : '',
-            offset = (offsets != '' && offsets != 'all') ? `LIMIT ${data[0].limit} OFFSET ${offsets}` : `LIMIT ${data[0].limit} OFFSET 0`;
-
-
-        let countQuery = `SELECT count(*) as total FROM lookMaster `;
-        let query = `SELECT sku, name, numViews FROM lookMaster `;
+            offset = (offsets != '' && offsets != 'all') ? `LIMIT ${data.limit} OFFSET ${offsets}` : `LIMIT ${data.limit} OFFSET 0`;
 
         if (keyword != '' && keyword != null) {
-            keyquery = ` WHERE (name LIKE '%${keyword}%' OR spaces LIKE '%${keyword}%' OR surfaces LIKE '%${keyword}%' OR priceCategory LIKE '%${keyword}%') AND `;
-
-            query += keyquery;
-            countQuery += keyquery;
+            filter = ` WHERE (name LIKE '%${keyword}%' OR spaces LIKE '%${keyword}%' OR surfaces LIKE '%${keyword}%' OR priceCategory LIKE '%${keyword}%') AND `;
 
         } else {
-            keyquery = ` WHERE ${spaces}${surfaces}${price}${space_size} `;
-            query += keyquery;
-            countQuery += keyquery;
+            filter = ` WHERE ${spaces}${surfaces}${price}${space_size} `;
         }
 
-        query += `type = 0 AND isActive = 1 ${offset}`;
+        let query = `SELECT sku, name, numViews, (SELECT count(*) as total FROM lookMaster ${filter} type = 0 AND isActive = 1) as total FROM lookMaster`;
 
-        countQuery += `type = 0 AND isActive = 1`;
+        query += `${filter} type = 0 AND isActive = 1 ${offset}`;
 
         console.log(query);
 
-        if (data[1] == 0) {
-
-            return db.all(query, [], callback);
-        } else {
-            return db.get(countQuery, [], callback);
-        }
+        return db.all(query, [], callback);
 
     },
     getLookDetail: function(sku, callback) {
 
-        console.log(sku);
+        // console.log(sku);
 
         db.run(`UPDATE lookMaster SET numViews = numViews + 1 WHERE sku = ?`, [sku]);
 
@@ -95,28 +81,56 @@ module.exports = {
         if (data.type != null && data.type != '') {
 
             if (data.type == 'tile') {
-                query = `SELECT t.sku, t.name, t.collection, d.value as Length, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster `;
-                query += `t LEFT JOIN  tileDetailMaster d ON d.sku=t.sku LEFT JOIN tileDetailMaster k ON k.sku=t.sku `;
-                query += `WHERE t.sku = ? AND t.isActive = ? AND d.head = 'details' AND d.name = 'Length' AND k.head = 'details' AND k.name = 'Width' `;
+                query = `SELECT t.sku, t.name, t.collection,
+
+                (select value from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Width') as width,
+                
+                (select value from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Height') as height,
+                
+                 (select value from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Thickness') as thickness,
+                 
+                 (select unit from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Thickness') as unit,
+                 
+                 t.isWall, t.isFloor FROM tileMaster t 
+                
+                WHERE t.sku = '${data.sku}' AND t.isActive = 1;`;
+
+
             } else if (data.type == 'marble') {
 
-                query = `SELECT t.sku, t.name, t.collection, d.value as Length, k.value as width, d.unit, t.isWall, t.isFloor FROM stoneMaster `;
-                query += `t LEFT JOIN  stoneDetailMaster d ON d.sku=t.sku LEFT JOIN stoneDetailMaster k ON k.sku=t.sku `;
-                query += `WHERE t.sku = ? AND t.isActive = ? AND d.head = 'details' AND d.name = 'Length' AND k.head = 'details' AND k.name = 'Width' `;
+                query = `SELECT t.sku, t.name, t.category as collection,
+
+                (select value from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Width') as width,
+                
+                (select value from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Height') as height,
+                
+                 (select value from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Thickness') as thickness,
+                 
+                 (select unit from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Thickness') as unit,
+                 
+                 t.isWall, t.isFloor FROM stoneMaster t 
+                
+                WHERE t.sku = '${data.sku}' AND t.isActive = 1;`;
+
+
             } else {
-                query = `SELECT t.sku, t.name, t.collection, d.value as Length, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster `;
+
+
+                query = `SELECT t.sku, t.name, t.collection, d.value as height, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster `;
                 query += `t LEFT JOIN  tileDetailMaster d ON d.sku=t.sku LEFT JOIN tileDetailMaster k ON k.sku=t.sku `;
-                query += `WHERE t.sku = ? AND t.isActive = ? AND d.head = 'details' AND d.name = 'Length' AND k.head = 'details' AND k.name = 'Width' `;
+                query += `WHERE t.sku = '${data.sku}' AND t.isActive = 1 AND d.head = 'details' AND d.name = 'Height' AND k.head = 'details' AND k.name = 'Width' `;
+
+
             }
 
 
             console.log(query);
 
-            return db.get(query, [data.sku, 1], callback);
+            return db.get(query, [], callback);
 
         } else {
 
-            return callback(false);
+            return callback([]);
 
         }
 
@@ -140,52 +154,36 @@ module.exports = {
 
     getStylesList: function(data, callback) {
 
-        console.log(data[1]);
+        var space = data.space.trim(),
+            surface = data.surface.toLowerCase().trim(),
+            Size = data.space_size.toLowerCase().trim(),
+            price_range = data.price_range.trim(),
+            offsets = data.offset;
 
-        var space = data[0].space.toLowerCase().trim(),
-            surface = data[0].surface.toLowerCase().trim(),
-            size = data[0].space_size.toUpperCase().trim(),
-            price_range = data[0].price_range.trim(),
-            offsets = data[0].offset;
+        let size = Size.charAt(0).toUpperCase() + Size.slice(1);
 
+        var keyword = data.keyword;
 
-        var keyword = data[0].keyword;
-
-        var spaces = (space != '' && space != 'all') ? ` spaces = '${space}' AND ` : '',
+        var spaces = (space != '' && space != 'all') ? ` spaces = '${space.replace(/\w\S*/g, function(txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); })}' AND ` : '',
             surfaces = (surface != '' && surface != 'all') ? ` surfaces = '${surface}' AND ` : '',
-            space_size = (data[0].space_size != '' && data[0].space_size != 'all') ? ` space_size = '${size}' AND ` : '',
+            space_size = (data.space_size != '' && data.space_size != 'all') ? ` space_size = '${size}' AND ` : '',
             price = (price_range != '' && price_range != 'all') ? ` priceCategory = '${price_range}' AND ` : '',
-            offset = (offsets != '' && offsets != 'all') ? `LIMIT ${data[0].limit} OFFSET ${offsets}` : `LIMIT ${data[0].limit} OFFSET 0`;
-
-
-        let countQuery = `SELECT count(*) as total FROM lookMaster `;
-        let query = `SELECT sku, name, numViews FROM lookMaster `;
+            offset = (offsets != '' && offsets != 'all') ? `LIMIT ${data.limit} OFFSET ${offsets}` : `LIMIT ${data.limit} OFFSET 0`;
 
         if (keyword != '' && keyword != null) {
-            keyquery = ` WHERE (name LIKE '%${keyword}%' OR spaces LIKE '%${keyword}%' OR surfaces LIKE '%${keyword}%' OR priceCategory LIKE '%${keyword}%') AND `;
-
-            query += keyquery;
-            countQuery += keyquery;
+            filter = ` WHERE (name LIKE '%${keyword}%' OR spaces LIKE '%${keyword}%' OR surfaces LIKE '%${keyword}%' OR priceCategory LIKE '%${keyword}%') AND `;
 
         } else {
-            keyquery = ` WHERE ${spaces}${surfaces}${price}${space_size} `;
-            query += keyquery;
-            countQuery += keyquery;
+            filter = ` WHERE ${spaces}${surfaces}${price}${space_size} `;
         }
 
-        query += `type = 1 AND isActive = 1 ${offset}`;
+        let query = `SELECT sku, name, numViews, (SELECT count(*) as total FROM lookMaster ${filter} type = 1 AND isActive = 1) as total FROM lookMaster`;
 
-        countQuery += `type = 1 AND isActive = 1`;
-
+        query += `${filter} type = 1 AND isActive = 1 ${offset}`;
 
         console.log(query);
 
-        if (data[1] == 0) {
-
-            return db.all(query, [], callback);
-        } else {
-            return db.get(countQuery, [], callback);
-        }
+        return db.all(query, [], callback);
 
     },
 
@@ -199,6 +197,74 @@ module.exports = {
         console.log(query);
 
         return db.all(query, [], callback);
+
+
+    },
+
+
+    getSkuDetailForShortList: function(data, callback) {
+
+        let query = '';
+
+        if (data.type != null && data.type != '') {
+
+            if (data.type == 'tile') {
+                query = `SELECT t.sku, t.name,
+                
+                (select value from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Box Size') as box,
+                (select unit from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Box Size') as boxUnit,
+
+                (select unit from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Coverage') as coverage,
+                (select value from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Coverage') as coverageUnit,
+                (select package from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Coverage') as coveragePackage,
+
+                (select value from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name IN('MRP','mrp','Mrp')) as mrp,
+                (select unit from tileDetailMaster where sku = '${data.sku}' AND head = 'details' AND name IN('MRP','mrp','Mrp')) as mrpUnit,
+                 
+                 t.isWall, t.isFloor FROM tileMaster t 
+                
+                WHERE t.sku = '${data.sku}' AND t.isActive = 1;`;
+
+
+            } else if (data.type == 'marble') {
+
+                query = `SELECT t.sku, t.name,
+
+                (select value from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Box Size') as box,
+                (select unit from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Box Size') as boxUnit,
+
+                (select unit from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Coverage') as coverage,
+                (select value from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Coverage') as coverageUnit,
+                (select package from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name = 'Coverage') as coveragePackage,
+
+                (select value from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name IN('MRP','mrp','Mrp')) as mrp,
+                (select unit from stoneDetailMaster where sku = '${data.sku}' AND head = 'details' AND name IN('MRP','mrp','Mrp')) as mrpUnit,
+                 
+                 t.isWall, t.isFloor FROM stoneMaster t 
+                
+                WHERE t.sku = '${data.sku}' AND t.isActive = 1;`;
+
+
+            } else {
+
+
+                query = `SELECT t.sku, t.name, t.collection, d.value as height, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster `;
+                query += `t LEFT JOIN  tileDetailMaster d ON d.sku=t.sku LEFT JOIN tileDetailMaster k ON k.sku=t.sku `;
+                query += `WHERE t.sku = '${data.sku}' AND t.isActive = 1 AND d.head = 'details' AND d.name = 'Height' AND k.head = 'details' AND k.name = 'Width' `;
+
+
+            }
+
+
+            // console.log(query);
+
+            return db.get(query, [], callback);
+
+        } else {
+
+            return callback(false);
+
+        }
 
 
     },

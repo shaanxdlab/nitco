@@ -1,19 +1,24 @@
-var db = require('../database');
+var dataDb = require('../database');
+let db = dataDb.connectDatabase();
 
 module.exports = {
 
     getRoomsList: function(data, callback) {
 
-        var type = data.type.toUpperCase().trim(),
-            size = data.size.toUpperCase().trim(),
+        var type = data.type.toLowerCase().trim(),
+            size = data.size.toLowerCase().trim(),
             qr = '';
 
+        let Type = type.replace(/\w\S*/g, function(txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
+        let Size = size.replace(/\w\S*/g, function(txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
+
+        console.log(Type);
 
         if (type != 'ALL' && size == 'ALL') {
             qr = `space = '${type}' AND`;
         } else if (type != 'ALL' && size != 'ALL') {
 
-            qr = `space = '${type}' AND category = '${size}' AND`;
+            qr = `space = '${Type}' AND category = '${Size}' AND`;
         }
 
         query = `SELECT room as sku,name,category AS size FROM roomsetMaster WHERE ${qr} isActive = ?`;
@@ -25,7 +30,7 @@ module.exports = {
     },
     getFilterList: function(data, callback) {
 
-        console.log(data.type);
+        // console.log(data.type);
 
         var table = data.table.toLowerCase().trim(),
             type = data.type.toLowerCase().trim();
@@ -42,7 +47,7 @@ module.exports = {
             else if (type == 'product_size') {
 
                 query = `SELECT distinct (d.value || ' x ' || k.value || ' ' ||  d.unit) as value FROM tileMaster t LEFT JOIN tileDetailMaster d ON d.sku=t.sku LEFT JOIN tileDetailMaster k ON k.sku=t.sku where `;
-                query += `d.head='details' AND d.name='Length' and d.value!='' AND k.head='details' AND k.name='Width' and k.value!='' AND `;
+                query += `d.head='details' AND d.name='Height' and d.value!='' AND k.head='details' AND k.name='Width' and k.value!='' AND `;
 
 
             } else if (type == 'material') query += `d.head='details' AND d.name='Material' and d.value!='' AND `;
@@ -68,7 +73,7 @@ module.exports = {
 
                 query += `SELECT distinct d.value FROM tileMaster t LEFT JOIN tileDetailMaster d ON d.sku=t.sku where d.head='properties' AND d.value!='' AND t.isActive = 1
 
-                union 
+                UNION ALL
                 
                 SELECT distinct d.value FROM stoneMaster s LEFT JOIN stoneDetailMaster d ON d.sku=s.sku where d.head='properties' AND d.value!='' AND s.isActive = 1`;
             }
@@ -76,7 +81,7 @@ module.exports = {
 
         }
 
-        console.log(query);
+        //   console.log(query);
 
         return db.all(query, [], callback);
 

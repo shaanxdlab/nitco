@@ -1,4 +1,5 @@
-var db = require('../database');
+var dataDb = require('../database');
+let db = dataDb.connectDatabase();
 
 module.exports = {
 
@@ -54,7 +55,7 @@ module.exports = {
     getMarbleGalleryList: function(sku, callback) {
 
         let query = `
-                SELECT t.sku, t.name, t.collection, d.value as length, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster t `;
+                SELECT t.sku, t.name, t.collection, d.value as height, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster t `;
         query += `
                 LEFT JOIN tileDetailMaster d ON d.sku = t.sku LEFT JOIN tileDetailMaster k ON k.sku = t.sku `;
         query += `
@@ -88,7 +89,7 @@ module.exports = {
         let limit = (data.limit != '' && data.limit != 'all' && data.limit != undefined) ? ` LIMIT ${data.limit}` : ` LIMIT 30`;
         let offset = (data.offset != '' && data.offset != 'all' && data.offset != undefined) ? ` OFFSET ${data.offset}` : ` OFFSET 0`;
 
-        let query = `SELECT t.sku, t.name, t.family, t.category as collection, d.value as length, k.value as width, d.unit, t.isWall, t.isFloor FROM stoneMaster t `;
+        let query = `SELECT t.sku, t.name, t.family, t.category as collection, d.value as height, k.value as width, d.unit, t.isWall, t.isFloor FROM stoneMaster t `;
         query += `LEFT JOIN stoneDetailMaster d ON d.sku = t.sku LEFT JOIN stoneDetailMaster k ON k.sku = t.sku `;
         query += `where t.family = (SELECT family from stoneMaster WHERE sku = '${sku}') `;
         query += `AND t.category = (SELECT category from stoneMaster WHERE sku = '${sku}') `;

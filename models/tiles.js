@@ -1,4 +1,5 @@
-var db = require('../database');
+var dataDb = require('../database');
+let db = dataDb.connectDatabase();
 
 module.exports = {
 
@@ -14,16 +15,26 @@ module.exports = {
         var product_size = (data.product_size != 'all') ? `SELECT t.sku from tileMaster t LEFT JOIN tileDetailMaster d ON d.sku=t.sku WHERE d.value = '${data.product_size}' AND t.isActive=1  INTERSECT ` : '';
         var properties = (data.properties != 'all') ? `SELECT t.sku from tileMaster t LEFT JOIN tileDetailMaster d ON d.sku=t.sku WHERE d.value IN ('${data.properties.split(",").join("','")}') AND t.isActive=1  INTERSECT ` : '';
 
-        let query = `SELECT t.sku, t.name, t.collection,  d.value as length, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster t `;
+        let query = `SELECT t.sku, t.name, t.collection,
+        
+        (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Width') as width,
+                
+        (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Height') as height,
+        
+         (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Thickness') as thickness,
+         
+         (select unit from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Thickness') as unit,
+        
+        t.isWall, t.isFloor FROM tileMaster t `;
 
         if (keyword != '' && keyword != null) {
-            query += `LEFT JOIN  tileDetailMaster d ON d.sku=t.sku LEFT JOIN tileDetailMaster k ON k.sku = t.sku WHERE (t.name LIKE '%${keyword}%' OR t.collection LIKE '%${keyword}%' OR d.value LIKE '%${keyword}%') AND `;
+            query += `LEFT JOIN  tileDetailMaster d ON d.sku=t.sku WHERE (t.name LIKE '%${keyword}%' OR t.collection LIKE '%${keyword}%' OR d.value LIKE '%${keyword}%') AND `;
         } else {
             var qr = `${spaces}${surface}${color}${price}${space_size}${material}${product_size}${properties}`;
-            query += `LEFT JOIN  tileDetailMaster d ON d.sku=t.sku LEFT JOIN tileDetailMaster k ON k.sku = t.sku WHERE t.sku IN (${qr.substring(0,qr.length - 11)}) AND `;
+            query += `LEFT JOIN  tileDetailMaster d ON d.sku=t.sku WHERE t.sku IN (${qr.substring(0,qr.length - 11)}) AND `;
         }
 
-        query += `t.isActive = 1 AND d.head = 'details' AND d.name = 'Length' AND k.head = 'details' AND k.name = 'Width'`;
+        query += `t.isActive = 1`;
 
 
         console.log(query);
@@ -37,7 +48,7 @@ module.exports = {
 
         db.run(`UPDATE tileMaster SET numViews = numViews + 1 WHERE sku = ?`, [sku]);
 
-        let query = `SELECT t.sku,t.name,t.collection,t.isFloor,t.isWall,t.numViews,t.isAvailable, d.head,d.name as heading,d.value,d.unit,d.package `;
+        let query = `SELECT t.sku,t.name,t.collection,t.shape,t.isFloor,t.isWall,t.numViews,t.isAvailable, d.head,d.name as heading,d.value,d.unit,d.package `;
         query += `FROM tileMaster t INNER JOIN tileDetailMaster d ON d.sku=t.sku WHERE t.sku = '${sku}'`;
 
         console.log(query);
@@ -49,9 +60,19 @@ module.exports = {
 
     getTilesCollectionList: function(sku, callback) {
 
-        let query = `SELECT t.sku, t.name, t.collection, d.value as length, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster t `;
-        query += `LEFT JOIN tileDetailMaster d ON d.sku = t.sku LEFT JOIN tileDetailMaster k ON k.sku = t.sku where t.collection = (SELECT collection from tileMaster WHERE sku = '${sku}') `
-        query += `AND t.isActive=1 AND t.sku !='${sku}' AND d.head = 'details' AND d.name = 'Length' AND k.head = 'details' AND k.name = 'Width' ORDER BY t.numViews DESC LIMIT 6`;
+        let query = `SELECT t.sku, t.name, t.collection, 
+        
+        (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Width') as width,
+                
+        (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Height') as height,
+        
+         (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Thickness') as thickness,
+         
+         (select unit from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Thickness') as unit,
+        
+        t.isWall, t.isFloor FROM tileMaster t `;
+
+        query += ` where t.collection = (SELECT collection from tileMaster WHERE sku = '${sku}') AND t.isActive=1 AND t.sku !='${sku}' ORDER BY t.numViews DESC LIMIT 6`;
 
         console.log(query);
 
@@ -64,12 +85,23 @@ module.exports = {
     getSimilarTilesList: function(sku, callback) {
 
 
-        let query = `SELECT t.sku, t.name, t.collection, d.value as length, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster t `;
-        query += `LEFT JOIN tileDetailMaster d ON d.sku = t.sku LEFT JOIN tileDetailMaster k ON k.sku = t.sku `;
+        let query = `SELECT t.sku, t.name, t.collection, 
+        
+        (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Width') as width,
+                
+        (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Height') as height,
+        
+         (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Thickness') as thickness,
+         
+         (select unit from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Thickness') as unit,
+        
+        t.isWall, t.isFloor FROM tileMaster t `;
+
+        query += `LEFT JOIN tileDetailMaster d ON d.sku = t.sku `;
+
         query += `where t.collection = (SELECT collection from tileMaster WHERE sku = '${sku}') `
         query += `AND d.name = (SELECT d.name FROM tileDetailMaster WHERE sku = '${sku}') `;
-        query += `AND d.unit = (SELECT d.unit FROM tileDetailMaster WHERE sku = '${sku}') `;
-        query += `AND t.isActive=1 AND t.sku !='${sku}' AND d.head = 'details' AND d.name = 'Length' AND k.head = 'details' AND k.name = 'Width' ORDER BY t.numViews DESC LIMIT 10`;
+        query += `AND t.isActive=1 AND t.sku !='${sku}' ORDER BY t.numViews DESC LIMIT 10`;
 
         console.log(query);
 
@@ -81,12 +113,23 @@ module.exports = {
 
     getCombinationTilesList: function(sku, callback) {
 
-        let query = `SELECT t.sku, t.name, t.collection, d.value as length, k.value as width, d.unit, t.isWall, t.isFloor FROM tileMaster t `;
-        query += `LEFT JOIN tileDetailMaster d ON d.sku = t.sku LEFT JOIN tileDetailMaster k ON k.sku = t.sku `;
+        let query = `SELECT t.sku, t.name, t.collection, 
+        
+        (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Width') as width,
+                
+        (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Height') as height,
+        
+         (select value from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Thickness') as thickness,
+         
+         (select unit from tileDetailMaster g where g.sku = t.sku AND head = 'details' AND name = 'Thickness') as unit,
+        
+        t.isWall, t.isFloor FROM tileMaster t `;
+
+        query += `LEFT JOIN tileDetailMaster d ON d.sku = t.sku `;
+
         query += `where t.collection = (SELECT collection from tileMaster WHERE sku = '${sku}') `
         query += `AND d.name = (SELECT d.name FROM tileDetailMaster WHERE sku = '${sku}') `;
-        query += `AND d.unit = (SELECT d.unit FROM tileDetailMaster WHERE sku = '${sku}') `;
-        query += `AND t.isActive=1 AND t.sku !='${sku}' AND d.head = 'details' AND d.name = 'Length' AND k.head = 'details' AND k.name = 'Width' ORDER BY t.numViews DESC LIMIT 10`;
+        query += `AND t.isActive=1 AND t.sku !='${sku}' ORDER BY t.numViews DESC LIMIT 10`;
 
         console.log(query);
 

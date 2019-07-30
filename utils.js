@@ -2,7 +2,6 @@ var fs = require('fs'),
     walk = require('walk'),
     path = require('path'),
     express = require('express'),
-    async = require('async'),
     lookModel = require('./models/looks'),
     tileModel = require('./models/tiles'),
     marbleModel = require('./models/marbles');
@@ -66,70 +65,22 @@ module.exports.countGallery = function(path) {
 
         fs.readdir(path, function(err, items) {
 
-            if (err) reject();
+            if (err) {
 
-            resolve(items.length);
+                resolve('');
+
+            } else {
+
+                console.log(items);
+
+                resolve(items);
+            }
 
         });
     })
 
 
 }
-
-module.exports.sync = function(app, results, scallback) {
-    async.parallel([
-        function(cb) {
-            async.each(results[0], function(item, callback) {
-                var middleware = item.middleware({ models: results[1], config: config });
-                var accessType = item.type;
-                app.post("*/*", express.bodyParser(), middleware);
-
-                callback(null);
-            }, function(err) {
-                if (cb) {
-                    cb(err);
-                }
-            });
-        },
-        function(cb) {
-            async.each(results[2], function(item, callback) {
-                var controller = item.func({ models: results[1], config: config, mailer: mailer, notification: notification, pdf: pdf, signinModels: results[3], crons: results[4] });
-                var accessType = item.type;
-                var keys = Object.keys(controller);
-
-                for (var i = 0; i < keys.length; i++) {
-                    var name = keys[i],
-                        params = name.split("#"),
-                        type = params[0],
-                        method = params[1];
-
-                    if (accessType == "controllers") {
-                        if (type == "get") {
-                            app.get("/api/" + method, express.bodyParser(), controller[name]);
-                        } else if (type == "post") {
-                            app.post("/api/" + method, express.bodyParser(), controller[name]);
-                        }
-                    } else {
-                        if (type == "get") {
-                            app.get("/api/" + method, express.bodyParser(), controller[name]);
-                        } else if (type == "post") {
-                            app.post("/api/" + method, express.bodyParser(), controller[name]);
-                        }
-                    }
-                }
-
-                callback(null);
-            }, function(err) {
-                if (cb) {
-                    cb(err);
-                }
-            });
-        },
-    ], function(err) {
-        scallback(err)
-    });
-}
-
 
 
 
@@ -167,7 +118,7 @@ module.exports.getSKUDetail = function(data, callback) {
             module.exports.countGallery(`./data/looks/${SKU}/gallery/`).then(function(data) {
 
                 if (data != null && data != '') {
-                    lookArray.galleryCount = data;
+                    lookArray.galleryCount = data.length;
                 } else {
 
                     lookArray.galleryCount = 0;
@@ -286,7 +237,7 @@ module.exports.getSKUDetail = function(data, callback) {
 
                 var resArray = {
 
-                detail: [],
+                detail: {},
                 properties: [],
                 suitableFor: [],
                 galleryCount: 0,
@@ -299,18 +250,15 @@ module.exports.getSKUDetail = function(data, callback) {
                 resArray.sku = row.sku;
                 resArray.name = row.name;
                 resArray.collection = row.collection;
+                resArray.shape = row.shape;
                 resArray.isFloor = row.isFloor;
                 resArray.isWall = row.isWall;
                 resArray.isAvailable = row.isAvailable;
 
                 if (row.head == 'details') {
-                    resArray.detail.push({
 
-                        'name': row.heading,
-                        'value': row.value,
-                        'unit': row.unit,
-                        'package': row.package
-                    });
+                    resArray.detail[`${row.heading}`] = { 'value': row.value, 'unit': row.unit, 'package': row.package };
+
                 }
 
                 if (row.head == 'properties') {
@@ -338,7 +286,7 @@ module.exports.getSKUDetail = function(data, callback) {
 
                 var resArray = {
 
-                detail: [],
+                detail: {},
                 properties: [],
                 suitableFor: [],
                 galleryCount: 0,
@@ -350,20 +298,16 @@ module.exports.getSKUDetail = function(data, callback) {
 
                 resArray.sku = row.sku;
                 resArray.name = row.name;
+                resArray.family = row.family;
                 resArray.collection = row.collection;
-                resArray.category = row.category;
                 resArray.isFloor = row.isFloor;
                 resArray.isWall = row.isWall;
                 resArray.isAvailable = row.isAvailable;
 
                 if (row.head == 'details') {
-                    resArray.detail.push({
 
-                        'name': row.heading,
-                        'value': row.value,
-                        'unit': row.unit,
-                        'package': row.package
-                    });
+                    resArray.detail[`${row.heading}`] = { 'value': row.value, 'unit': row.unit, 'package': row.package };
+
                 }
 
                 if (row.head == 'properties') {
@@ -375,6 +319,9 @@ module.exports.getSKUDetail = function(data, callback) {
                 }
 
             });
+
+            //console.log('++++++++++++++++++++++++++++++++++++');
+            //  console.log(resArray);
 
             return callback(null, ['marbles', resArray]);
 

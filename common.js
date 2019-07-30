@@ -1,19 +1,20 @@
-var async = require('async');
-var moment = require('moment');
 
 module.exports = {
     failure_callback: function(res, data) {
 
-        (!data[1]) ? code = 500 : code = data[1];
-        (!data[0]) ? message =  "Internal server error. Please try again later." : message = data[0]; 
+        (!data[1]) ? scode = 500: scode = 200;
 
-        return res.status(code).json({success: false, error: message});
+        (!data[1]) ? code = 500: code = data[1];
+
+        (!data[0]) ? message = "Internal server error. Please try again later.": message = data[0];
+
+        return res.status(scode).json({ status: code, error: message });
     },
-  
-    success_callback:  function(res, msg) {
-        if (!msg) return res.json({ success: true, message: "success" });
+
+    success_callback: function(res, msg) {
+        if (!msg) return res.json({ status: 200, message: "success" });
         else
-           return res.json({ success: true, message: msg });
+            return res.json({ success: true, message: msg });
     },
     parse_json: function(jsonStr, dValue) {
         var json;
@@ -25,7 +26,7 @@ module.exports = {
         }
         return json;
     },
-      parse_array: function(arrayStr, dValue) {
+    parse_array: function(arrayStr, dValue) {
         var array;
         try {
             array = JSON.parse(arrayStr);
@@ -35,4 +36,4 @@ module.exports = {
         }
         return array;
     }
-  };
+};

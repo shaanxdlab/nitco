@@ -1,7 +1,4 @@
-var striptags = require('striptags'),
-    slashes = require('slashes');
 const productModel = require('../models/tiles');
-const { check } = require('express-validator');
 const { failure_callback, success_callback } = require('../common');
 var message;
 
@@ -12,9 +9,9 @@ module.exports = {
     tileValidation: function(req, res, next) { //check the devision duplicacy
 
 
-        if (typeof req.query.type == 'undefined' || req.query.type == '') {
+        if (req.query.type == undefined || req.query.type == '') {
             return failure_callback(res, ['room type is required', 400]);
-        } else if (typeof req.query.size == 'undefined' || req.query.size == '') {
+        } else if (req.query.size == undefined || req.query.size == '') {
             return failure_callback(res, ['room size is required', 400]);
         } else return next();
     },
@@ -39,10 +36,16 @@ module.exports = {
 
             else
 
+            if (rows == undefined || rows == 'null' || rows == '') {
+
+                res.json({ status: 200, total: 0, data: [], message: 'no records found' });
+
+            } else {
+
                 rows.length != 0 ? message = 'success' : message = 'no records found';
 
-            res.json({ status: 200, total: rows.length, data: rows, message: message });
-
+                res.json({ status: 200, total: rows.length, data: rows, message: message });
+            }
         });
 
 
